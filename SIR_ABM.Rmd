@@ -1,0 +1,156 @@
+---
+title: "SIR-model functions"
+author: "Klara Krøyer Fomsgaard"
+date: "3/16/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Creating an ABM in R - the basics
+
+The following is an example of how one can create a ~very~ simple ABM. In this example, we create our ABM based on a SIR contagion model - a simplistic description of how an epidemic evolves. 
+The SIR-model separates a population into three different categories: 
+   1. Susceptible - People who have not been infected yet
+   2. Infected - People who are sick and can infect others
+   3. Recovered - People who have been sick but are now recovered and immune
+
+The progression of a SIR model is describes by differential equations, but as this is just an example of what the most basic elements in an ABM in R is, we will not dive too much into this. 
+
+Important variables in the SIR model include:
+ - The total population N;
+ - The transmission rate 𝛽, measured as the average number of contacts per person per time, multiplied by the probability of transmission 
+   between a infected and susceptible person;
+ - The removal rate 𝛾, also given by 1/D where D is the length of the period for which a person is infectious.
+ 
+ Sources/inspiration: 
+ https://www.nature.com/articles/s41598-021-94609-3
+ https://scipython.com/book/chapter-8-scipy/additional-examples/the-sir-epidemic-model/
+ 
+ 
+## Load relevant packages
+```{r}
+pacman::p_load(tidyverse)
+```
+
+## Creating our globals
+The most important parameters that are included in all ABMs are N (number of agents) and t_max (number of timesteps)
+In our model, we also want to be able to adjust some of the things that might affect the dynamics of the model. This includes:
+ 1. How many agents one agent can socialize with per timestep
+ 2. How many people are infected in the beginning
+ 3. How infectious the disease is (The probability of getting infected when in contact with a sick agent)
+ 4. How long it takes before an agent is no longer sick/infectious
+ 
+ Below is a list of the variables we want to include and some baseline parameter values
+ 
+```{r}
+N = 1000                        # Number of agents in the ABM
+t_max <- 50                     # Number of days for the ABM to run
+socializing <- 1                # Amount of people one can socialize with in one day 
+initially_infected <- .01       # Initial amount of infected people in % 
+inf_prob <- 30                  # The probability of getting infected when meeting a sick agent
+recovery_time <- 7              # The amount of days an agent is infectious/sick, before they are recovered
+```
+
+## Creating the ABM function
+
+One of the nice things about making the ABM a function, is that you can insert different parameter values and see how they affect the outcome of the model. Usually, the best way to go about making an ABM is to start it as simple code and convert it to a function afterwards. You will probably also benefit from making the dynamics inside your ABM into functions, as it gives a much cleaner code and more flexibility.
+
+```{r}
+ABM_function <- function(N,t_max,socializing,initially_infected,inf_prob,recovery_rate){
+  # Creating a tibble with IDs for N amount of agents, including their health status. 
+  # A small number of initially infected agents are included, based on the 'initially_infected' parameter 
+  population <- tibble(ID = 1:N,                                                                                       # Agent ID
+                       status = sample( c("S","I"), N, replace=TRUE, prob=c(1-initially_infected, initially_infected)),# Health status
+                       days_infected = 0)                                                                              # Days of infection
+  
+  # Creating a tibble for logging the progression of susceptible, infected and recovered agents as time passes
+  inf_log <- tibble(time = 1:t_max,
+                    susceptible_rate = NA,
+                    infection_rate = NA,
+                    recovery_rate = NA,)
+  
+  # Looping over the days, repeating the agents behavior for each time-step
+  for (days in 1:t_max){ 
+    # Creating a loop, allowing the agents to interact
+    for (agent in 1:N){  
+      # Creating if-statements for counting the days an agent is infected and change their status to recovered if the recovery-time has passed
+      if (population$status[agent] == "I"){ 
+        population$days_infected[agent] <- population$days_infected[agent] + 1
+      }
+      if (population$days_infected[agent]==recovery_rate){
+        population$status[agent] <-  "R"
+      }
+
+      # MEETING OTHER AGENTS - THIS IS THE INTERACTION FOLKS
+      # Picking random agents to socialize with - this is based on the socialization parameter, e.g. how many agents one can meet a time-step
+      encounter <-  sample(1:N,socializing) 
+      
+      for (i in encounter){
+        if (population$status[agent] == "S" & population$status[population$ID[i]] == "I"){
+          inf_roll <- sample(1:100,1)
+          if (inf_roll < inf_prob){
+            population$status[agent] <-  "I"
+          }
+        }
+      }
+      
+    }
+  inf_log$susceptible_rate[days] <- length(which(population$status=="S"))  
+  inf_log$infection_rate[days] <- length(which(population$status=="I"))
+  inf_log$recovery_rate[days] <- length(which(population$status=="R"))
+  }
+  return(inf_log)
+}
+
+```
+
+#Run and plot the ABM
+
+Now that we have a running ABM, we can start to play with it.
+
+## Creating a plotting function for plotting the results
+We first incorporate the ABM function into a plotting function, allowing us to plot the outcome of different parameter values
+```{r}
+# Creating the plot function
+
+ABM_visualization <- function(N,t_max,socializing,initially_infected,inf_prob,recovery_rate){
+  ABM_results <- ABM_function(N,t_max,socializing,initially_infected,inf_prob,recovery_rate)
+  return(ABM_results %>% ggplot() +
+          geom_line(aes(x = time,y = susceptible_rate), color = "blue") + 
+          geom_line(aes(x = time,y = infection_rate), color = "red") +
+          geom_line(aes(x = time,y = recovery_rate), color = "darkgreen") +
+          labs(title = "Agent based model inspired by the SIR-model")+
+          xlab("Time")+
+          ylab("Agent Count")+
+           theme_minimal())
+}
+```
+## Running the ABM
+
+Now we are ready to run the ABM. We can test out the effects of different parameter values, while keeping the other variables constant
+```{r}
+# SYNTAX:   ABM_visualization(N,t_max,socializing,initially_infected,inf_prob,recovery_rate)
+
+# Baseline values from above
+N = 1000                        # Number of agents in the ABM
+t_max <- 50                     # Number of days for the ABM to run
+socializing <- 1                # Amount of people one can socialize with in one day 
+initially_infected <- .01       # Initial amount of infected people in % 
+inf_prob <- 30                  # The probability of getting infected when meeting a sick agent
+recovery_time <- 7              # The amount of days an agent is infectious/sick, before they are recovered
+
+ABM_visualization(3000,t_max,1,initially_infected,inf_prob,7)
+
+```
+
+# Things to improve (if you want to give it a try)
+As this is an oversimplified model. we did e.g. not incorporate random spatial movement, which would improve the ecological validity of the model. This is possible, e.g. by giving all agents coordinates in an X x Y matrix and have them randomly move either up, down, left, or right, only interacting with agents in the near surroundings/agents who have the same position as them. 
+
+We can also change the model, making it a so-called SEIR model instead. This model has an extra step, where the agent is exposed but not sick yet. One could incorporate, that the agent is less infectious in the exposed fase, than when sick and see how that affects the nature of the model.
+
+We could also add, that each agent has a slightly different probability of getting infected.
+
+We can also incorporate a more fluent way of testing different parameter values by e.g. looping over a list of reasonable values for one parameter, while keeping others constant.
