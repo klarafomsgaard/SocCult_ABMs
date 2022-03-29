@@ -1,0 +1,445 @@
+---
+title: "Network ABM: Exercises"
+author: "Klara Krøyer Fomsgaard"
+date: "3/23/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Building a network ABM
+ 
+Today we will look at how to incorporate network science into agent based modeling. We will work in steps, starting with a really simple ABM which we can add upon as we go along. The structure of the ABM is inspired by/derived from the model Pernille and I did for our exam project. You can either use some of the provided code in this markdown, or in the code from the original ABM, or you can go a little rogue and try to build the model as you think it makes sense.
+
+### The deal
+Build a two-part ABM where the agents meet another agent and potentially connect with them. 
+
+I have included a list of ABM-specific functions in the bottom of the document which are useful if you get stuck while coding. The functions are the ones included in the exam ABM and can be modified as you want.
+
+### Relevant packages for the ABM
+```{r}
+pacman::p_load(tidyverse,
+               igraph)
+```
+
+## Task 1: Building the basics
+
+First, we want to build a basic model based on some randomly assigned baseline-probabilities of meeting and connecting. To do this, we need the following blocks included in the ABM:
+ 1. A population tibble with ID's, a studygroup number and a randomly assigned social trait for N students
+ 2. An NxN matrix containing the weights for each pair, which is used to calculate the probability of meeting each other agent
+ 3. An NxN matrix containing the weights for each pair, which is used to calculate the probability of connecting with each other agent
+ 4. A softmax function which is used to convert the weights in the matrices into a probability between 0 and 1 for each agent pairs to meet
+ 
+We want the outcome of the model to be a tibble containing the total amount of degrees (friendship ties) over time. We also want to print some network plots to show the development of ties (because it is more fun when you can actually see the progression in a more visual way)
+
+ 
+### 1.1 The population tibble
+Create A population tibble with ID's, a studygroup number and a randomly assigned social trait for N students (bonus if you make it a function).
+I suggest to make an ABM for 20 students with 5 studygroups (4 students in each group), and a social trait that centers around 3 and can't be negative.
+
+Useful functions:
+rep(repetitions, list_of_numbers_to_repeat)   - Repeat a list of numbers x amount of times
+rnorm(number_of_obervations, mean, sd)        - Sample random numbers from a normal distribution
+
+```{r}
+
+```
+ 
+### 1.2 The meeting matrix
+Create an NxN matrix and assign a random value (e.g. between 1 and 4) to each "pair" (each cell corresponds to two students: Student i = column no., Student j = row no.). The value is the baseline for meeting the other student without any other intervention. It mimicks the possibility that some students are more likely to run into each other for reasons we cannot control (e.g. living close to each other and sometimes meet randomly in REMA).The matrix will also be the foundation for adding other relevant factors that could influence who the students meet.
+
+(Note: We want the value to be the same both for student j meeting student i and the other way around. This means, that we want (i,j) = (j,i) in the matrix)
+(Suggestion: Create the matrix first and fill it with zeros, then write the function to loop over each cell in the matrix to fill it with the random values)
+
+Useful functions:
+sample(list_of_stuff_to_sample_from, amount_of_samples, replace = T)   - Samples a number of values from a given list
+
+```{r}
+
+```
+
+### 1.3 The connection matrix
+Create a matrix in the same way as in 1.2, but name it 'connection matrix' instead. The matrix will be the foundation for deciding whether two people become friends or not. Again, assign a random baseline value, to account for the possibility that some people have something in common that would lead them to become friends more easily (you love cats, I love cats, it's a match made in heaven)
+
+```{r}
+
+```
+### 1.4 The softmax
+Right now the meeting- and connection matrices are filled with random values. We want to turn each column into a set of probabilities that determines how likely it is student i to meet each of the other students. The column should some to 1, as we do not include to possibility to meet people outside of the cohort of students (we can think of that as included in the probability of meeting 'yourself', which is also included in this ABM).
+
+To do this, we create a softmax function which looks as follows (x is the entire column):
+       
+       exp(x) / sum(exp(x))
+
+To convert the weights into probabilities, create a function that loops over each column and applies the softmax to all values in the column
+```{r}
+
+```
+
+### 1.5 Creating a plot function for displaying the network
+We want to be able to print network plots as the ABM progresses over time (and to print the final network).We want to color the nodes after studygroup. To do that, we first create a matrix containing 1's in the cells where the pair (student i & student j) are in the same studygroup and 0 in the rest. We use the population tibble in our if statements, and loop over each cell in an empty matrix to fill it with 1's and 0's. 
+We then write a function which uses the igraph package to plot the networks, coloring the nodes after studygroups and assign the attributes to the network that you would like it to have (e.g. that the node size should vary depending on the degrees the node (student) has)
+
+Tip: To color the network after studygroups, first make the studygroup matrix into a graph using graph_from_adjacency_matrix().  
+
+#### The studygroup matrix
+```{r}
+
+```
+
+### The plot function
+```{r}
+
+```
+
+
+### 1.5 ---------- Creating the ABM  -----------
+Now it's time to incorporate the functions from above into an ABM. We want to create an ABM with the following structure:
+
+ 1. Create the population of N students and define a t_max (the amount of days the ABM should run)
+ 2. Create the studygroup matrix based on the population tibble
+ 3. Create the meeting matrix and the connection matrix (make them full of 0's at first) and use the functions from above to fill them with baseline values
+ 4. Create an NxN matrix full of zeros for storing 'friend' connections
+ 5. Create a tibble for saving the total amount of degrees of the network
+ 6. For each day, loop over each student,and inlcude the following steps:
+      6.1 The student samples another student based on the probabilities in their column
+      6.2 When the student is sampled, a random roll is made. If the number is smaller or equal to the weight in connection_matrix[i,j], 
+          a connection is made from i to j and added to the "friend matrix" in the [i,j] position. 
+          (bonus: When student i meets student j, student j also meets student i - so an idea is to also let the random roll decide if j makes a connection to i)
+      6.3 After each day, use the matrix with the friend connections to create a network. Save the total number of degrees into the tibble (4)
+          You can also print the network with an interval to see the progression
+ 7. After the final loop, return a network plot, showing the final network
+ 
+```{r}
+
+```
+ 
+
+## Task 2: Extending the ABM
+Now we have a functioning network ABM, it's time to play around and add to the model. You probably noticed that the Task 1 network is very homogeneous in its structure and the studygroup members are all over the place. Let's see what happens if we introduce some different social mechanisms into the network. The following extensions are inspired by my exam project, but feel free to add anything you think could be fun. One idea could be to incorporate last weeks ABM, and see what happens if you use the principles of the SIR-model to introduce covid :):
+
+
+### 2.1 Studygroup meetings
+Let's introduce a studygroup bias, i.e. that you are more likely to meet someone from your studygroup. We can do it in different ways, and if you already have a great idea, run with it. My suggestion is to add a bonus weight to the meeting matrix every X day, increasing the probability of meeting the studygroup members.
+
+Let's write it as a function and add it to the ABM above (remember to include the parameter in the input to the ABM function).
+
+Bonus: According to this paper (insert paper), the effect of formal groups on friendship formation decays over tie as other factors become more important. To incorporate this effect, exponentiate the studygroup bonus in -days (now you have math, yay!). It can be an idea to say -days/divider (the divider is a value set to regulate how fast the effect decays)
+```{r}
+
+```
+  
+
+
+
+
+
+# Possible solutions
+## Task 1: Building the basics
+### 1.1 The population tibble
+
+```{r}
+population_function <- function(N, group_no, mean_social_trait,sd_social_trait){
+  population <- tibble(ID = 1:N, 
+                       studygroup = rep(c(1:group_no), N / group_no),
+                       social_trait = rnorm(N, mean = mean_social_trait, sd = sd_social_trait))
+  return(population)
+}
+```
+ 
+### 1.2 The meeting matrix
+```{r}
+meeting_matrix <- matrix(0,nrow = N,ncol = N)
+
+meeting_base_function <- function(N, random_meet){
+  for (row in 1:nrow(meeting_matrix)){
+    for (col in 1:ncol(meeting_matrix)){
+      meeting_matrix[row,col] <-  meeting_matrix[col,row] <- sample(c(1:random_meet),1,replace = T)
+    }
+  }
+  return(meeting_matrix)
+}
+```
+
+### 1.3 The connection matrix
+```{r}
+connection_matrix <- matrix(0,nrow = N,ncol = N)
+
+connection_base_function <- function(N, random_connect){
+  for (row in 1:nrow(connection_matrix)){
+    for (col in 1:ncol(connection_matrix)){
+      connection_matrix[row,col] <-  connection_matrix[col,row] <- sample(c(1:random_connect),1,replace = T)
+    }
+  }
+  return(connection_matrix)
+}
+
+```
+
+### 1.4 The softmax
+```{r}
+softmax <- function(x) exp(x) / sum(exp(x)) # Creating the softmax function
+
+softmax_matrix_function <- function(meeting_matrix) { # Applying the softmax to the weighted matrix to create the probability matrix
+  for (i in 1:ncol(meeting_matrix)) {
+    meeting_matrix[,i] <- softmax(meeting_matrix[,i])
+  }
+  return(meeting_matrix)
+}
+```
+
+### 1.5 Creating a plot function for displaying the network
+#### The studygroup matrix
+```{r}
+## Creating a matrix with 1's when two students are in the same studygroup and 0 when they are not 
+A_study <- matrix(0,ncol = N, nrow = N) 
+
+for(row in 1:nrow(A_study)){
+  for(col in 1:ncol(A_study)) {
+    if(population[row,2] == population[col,2]){
+        A_study[row, col] <- 1 
+    }
+  }
+}
+```
+
+### The plot function
+```{r}
+plot_network_function <- function(A_study,network){
+  study_graph <- graph_from_adjacency_matrix(A_study, mode = "undirected") # creating a graph object from the study group matrix
+  study_cluster <- cluster_louvain(as.undirected(study_graph))
+  
+  # Attaching attributes to the networks
+  V(network)$frame.color <- "white" # ?
+  E(network)$arrow.mode <- 0 # Removing arrows showing direction from edges 
+  V(network)$size <- degree(network, mode="all")
+
+return(plot(study_cluster,network))
+}
+```
+
+### ---------- Creating the ABM -----------
+```{r}
+N <- 20
+t_max <- 200
+group_no <- 5
+mean_social_trait <- 3
+sd_social_trait <- 1
+
+random_meet <- 4
+random_connect <- 30
+freq_network_plot = 30
+# 1. Create The population tibble
+population <- population_function(N, group_no, mean_social_trait, sd_social_trait)
+
+# 2. Create the studygroup matrix
+A_study <- matrix(0,ncol = N, nrow = N) 
+    
+  for(row in 1:nrow(A_study)) {
+    for(col in 1:ncol(A_study)) {
+       if(population[row,2] == population[col,2]){
+          A_study[row, col] <- 1 
+      }
+    }
+  }
+
+# 3.1 --- THE MEETING MATRIX ---
+# Create the meeting matrix
+meeting_matrix <- matrix(0,nrow = N,ncol = N)
+
+# Assigning a rondom baseline weight to all of the pairs of meeting
+
+meeting_matrix <- meeting_base_function(meeting_matrix,4)
+
+# Converting the weights into probabilities using the softmax
+meeting_matrix <- softmax_matrix_function(meeting_matrix)
+
+# 3.2 --- THE CONNECTION MATRIX ---
+# Create the connection matrix
+connection_matrix <- matrix(0,nrow = N,ncol = N)
+
+# Assigning a random baseline of each student becoming friends with another student
+connection_matrix <- connection_base_function(connection_matrix, random_connect)
+
+
+# 4. Creating a matrix full of 0's to store friendship ties
+friends_matrix <- matrix(0,nrow = N,ncol = N)
+
+# 5. --- THE OUTPUT ---
+# Creating the tibble for storing the development of total degrees over time
+output <- tibble(days = 1:t_max, total_degrees = NA)
+
+
+# 6. --- LOOPING OVER EACH AGENT EACH DAY ---
+for (days in 1:t_max){
+  for (student_i in population$ID){
+  # 6.1 Meet another student j
+  student_j <- sample(population$ID,1,replace = T, prob = meeting_matrix[ ,student_i])
+  
+  # 6.2 Determine whether the two agents connect or not
+  random_roll <- sample(0:100,1) 
+  
+  if (random_roll <= connection_matrix[student_j,student_i]){
+    friends_matrix[student_j,student_i] <- friends_matrix[student_j,student_i] + 1
+    }
+  if (random_roll <= connection_matrix[student_i,student_j]){
+    friends_matrix[student_i,student_j] <- friends_matrix[student_i,student_j] + 1
+    }
+  }
+  # 6.3 Create a network to extract network measures and save the total amount of degrees in the output tibble
+  network_graph <- igraph::graph_from_adjacency_matrix(friends_matrix, mode = "directed")
+  
+  network_cleaned <- igraph::simplify( # Simplifying the graph
+    network_graph,
+    remove.multiple = TRUE,
+    remove.loops = TRUE,
+    edge.attr.comb = igraph_opt("edge.attr.comb"))
+  
+  ## Saving the output
+  output$total_degrees[days] <- igraph::degree(network_cleaned, mode = "total")
+  if ((days/freq_network_plot) %% 1 == 0){ # Printing the network every 30 days
+    print(plot_network_function(A_study,network_cleaned))  
+  }
+
+}
+# 7. Print the network and return the output tibble
+print(plot_network_function(A_study,network_cleaned)) 
+```
+## Task 2: Extending the ABM
+
+### 2.1 Studygroup meetings
+```{r}
+studygroup_bonus <- function(population,meeting_matrix,sg_bonus,days,divider){
+  if ((days/3) %% 1 == 0){ # This ensures that the weight is added every third day (is says that if there are no decimals in the number when you divide days by )
+    for (row in 1:nrow(meeting_matrix)){
+      for (col in 1:ncol(meeting_matrix)){
+        if (population[row, 2] == population[col,2]){ # If the studygroup no is the same for both student j and student i
+          meeting_matrix[row, col] <- meeting_matrix[row, col] + sg_bonus * exp(-days/divider) # this last part here allows for decay over time
+        }
+      }
+    }
+  }
+return(meeting_matrix)
+}
+
+```
+  
+### 2.2 Friend of a friend  
+```{r}
+FoF_function <- function(N,friends_matrix, meeting_matrix, delta, friends_bonus, days){
+  dist_matrix <- matrix(0,ncol = N, nrow = N) # an empty matrix to store the geodesic distance for each pair
+  dist_graph <- graph_from_adjacency_matrix(friends_matrix, mode = "directed") 
+  for(i in 1:ncol(dist_matrix)){
+    for(j in 1:nrow(dist_matrix)) {
+      dist <- igraph::distances(network_graph, v = V(network_graph)[i], to = V(network_graph)[j], mode = "all")
+      dist_matrix[j,i] <- friends_bonus*(delta^(dist[[1]])*log(days))} #log is added to increase the influence over time
+  }
+  meeting_matrix <- meeting_matrix + dist_matrix
+return(meeting_matrix)
+}
+
+```
+
+
+### The ABM
+ # Extended version
+```{r}
+N <- 20
+t_max <- 200
+group_no <- 5
+mean_social_trait <- 3
+sd_social_trait <- 1
+
+random_meet <- 4
+random_connect <-30
+freq_network_plot = 10
+
+sg_bonus <-  100
+divider <-  20
+
+delta <- 0.4
+friends_bonus <- 4
+
+# 1. Create The population tibble
+population <- population_function(N, group_no, mean_social_trait, sd_social_trait)
+
+# 2. Create the studygroup matrix
+A_study <- matrix(0,ncol = N, nrow = N) 
+    
+  for(row in 1:nrow(A_study)) {
+    for(col in 1:ncol(A_study)) {
+       if(population[row,2] == population[col,2]){
+          A_study[row, col] <- 1 
+      }
+    }
+  }
+
+# 3.1 --- THE MEETING MATRIX ---
+# Create the meeting matrix
+meeting_matrix <- matrix(0,nrow = N,ncol = N)
+meeting_matrix <- meeting_base_function(meeting_matrix,4)
+
+# 3.2 --- THE CONNECTION MATRIX ---
+connection_matrix <- matrix(0,nrow = N,ncol = N)
+connection_matrix <- connection_base_function(connection_matrix, random_connect)
+
+
+# 4. Creating a matrix full of 0's to store friendship ties
+friends_matrix <- matrix(0,nrow = N,ncol = N)
+
+# 5. --- THE OUTPUT ---
+# Creating the tibble for storing the development of total degrees over time
+output <- tibble(days = 1:t_max, total_degrees = NA)
+
+# 
+for (days in 1:t_max){
+  
+    
+  # STUDYGROUP BONUS
+  meeting_matrix <- studygroup_bonus(population,meeting_matrix,sg_bonus,days,divider)
+  
+  # FRIEND OF A FRIEND
+  if (days > 30){
+    meeting_matrix <- FoF_function(N,friends_matrix, meeting_matrix, delta, friends_bonus, days)
+  }
+  
+  # Converting the weights into probabilities using the softmax
+  meeting_matrix <- softmax_matrix_function(meeting_matrix)
+
+  for (student_i in population$ID){
+  # 6.1 Meet another student j
+  student_j <- sample(population$ID,1,replace = T, prob = meeting_matrix[ ,student_i])
+  
+  # 6.2 Determine whether the two agents connect or not
+  random_roll <- sample(0:100,1) 
+  
+  if (random_roll <= connection_matrix[student_j,student_i]){
+    friends_matrix[student_j,student_i] <- friends_matrix[student_j,student_i] + 1
+    }
+  if (random_roll <= connection_matrix[student_i,student_j]){
+    friends_matrix[student_i,student_j] <- friends_matrix[student_i,student_j] + 1
+    }
+  }
+  # 6.3 Create a network to extract network measures and save the total amount of degrees in the output tibble
+  network_graph <- igraph::graph_from_adjacency_matrix(friends_matrix, mode = "directed")
+  
+  network_cleaned <- igraph::simplify( # Simplifying the graph
+    network_graph,
+    remove.multiple = TRUE,
+    remove.loops = TRUE,
+    edge.attr.comb = igraph_opt("edge.attr.comb"))
+  
+  ## Saving the output
+  output$total_degrees[days] <- igraph::degree(network_cleaned, mode = "total")
+  if ((days/freq_network_plot) %% 1 == 0){ # Printing the network every 30 days
+    print(plot_network_function(A_study,network_cleaned))  
+  }
+
+}
+# 7. Print the network and return the output tibble
+print(plot_network_function(A_study,network_cleaned))  
+
+
+```
