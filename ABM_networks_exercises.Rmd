@@ -126,12 +126,23 @@ Let's introduce a studygroup bias, i.e. that you are more likely to meet someone
 
 Let's write it as a function and add it to the ABM above (remember to include the parameter in the input to the ABM function).
 
-Bonus: According to this paper (insert paper), the effect of formal groups on friendship formation decays over tie as other factors become more important. To incorporate this effect, exponentiate the studygroup bonus in -days (now you have math, yay!). It can be an idea to say -days/divider (the divider is a value set to regulate how fast the effect decays)
+Bonus: The effect of formal groups on friendship formation decays over time as other factors become more important. To incorporate this effect, exponentiate the studygroup bonus in -days (now you have math, yay!). It can be an idea to say -days/divider (the divider is a value set to regulate how fast the effect decays)
 ```{r}
 
 ```
   
+### 2.2 Friend of a friend  
+Theories of friendship formation suggest, that are more likely meet people who are closer to you in the network. This effect can be described as follows
+      weight = v_dist * delta^dist
+where weight is the bonus you get in the meeting matrix for being in close proximity, v_dist is a value specifying the size of the weight, and delta^dist is how much fast the weight decays when you get further out in the network.
 
+Extracting network metrics, we can write a function that adds a bonus to students closer to each other in the network. We want also want the influence of this effect to increase over time. In network science, the distance between two nodes is called 'geodesic distance' and is a measure of the amount of edges (ties) between two nodes. In R, we can use the function distances() from igraph to retrieve the geodesic distance from a graph (network).
+
+Tip: Add log(days) to the equation above to allow the effect to increase over time
+
+```{r}
+
+```
 
 
 
